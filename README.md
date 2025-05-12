@@ -1,7 +1,3 @@
-# Timer
-ver 1.0
-
-```markdown
 # Event Management Bot
 
 This project is a Telegram bot integrated with a Flask web application to manage and display events. The bot allows an admin to add events via Telegram, which are stored in a SQLite database. The Flask app provides a web interface to view these events, with one main event and multiple secondary events.
