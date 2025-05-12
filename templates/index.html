@@ -1,0 +1,266 @@
+#templates\index.html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Таймер событий</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background: #000;
+            color: #fff;
+            text-align: center;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            border-bottom: 1px solid #333;
+            padding-bottom: 30px;
+            margin-bottom: 30px;
+        }
+        .main-event {
+            font-size: 2.5em;
+            margin: 30px 0 10px;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+        .main-timer {
+            font-size: 5em;
+            margin: 20px 0 50px;
+            font-family: 'Courier New', monospace;
+            font-weight: 400;
+            transition: color 0.3s ease;
+        }
+        .events-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 40px;
+        }
+        .event-item {
+            background: #111;
+            padding: 25px;
+            border-radius: 2px;
+            border: 1px solid #333;
+            text-align: left;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        .event-item::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: #fff;
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+        .event-item:hover::after {
+            transform: scaleX(1);
+        }
+        .event-name {
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            font-weight: 400;
+        }
+        .event-timer {
+            font-size: 1.8em;
+            font-family: 'Courier New', monospace;
+            font-weight: 400;
+            transition: color 0.3s ease;
+        }
+        /* Цвета для основного таймера */
+        .main-normal { color: #fff; }
+        .main-1hour { color: #ff9800; }
+        .main-30min { color: #ff5722; }
+        .main-15min { color: #f44336; }
+        .main-past { color: #888; }
+        
+        /* Цвета для дополнительных таймеров */
+        .secondary-normal { color: #fff; }
+        .secondary-1hour { color: #ff9800; }
+        .secondary-15min { color: #f44336; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>СИСТЕМА ОТСЧЁТА</h1>
+            <div class="main-event" id="mainEvent">ОСНОВНОЕ СОБЫТИЕ</div>
+            <div class="main-timer main-normal" id="mainTimer">--:--:--</div>
+        </div>
+        
+        <div class="events-grid" id="secondaryEvents"></div>
+    </div>
+
+    <script>
+        function formatTime(ms) {
+            const absMs = Math.abs(ms);
+            const hours = Math.floor(absMs / (1000 * 60 * 60));
+            const mins = Math.floor((absMs % (1000 * 60 * 60)) / (1000 * 60));
+            const secs = Math.floor((absMs % (1000 * 60)) / 1000);
+            
+            return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateMainTimer(eventTime, element) {
+            try {
+                const now = new Date();
+                const time = new Date(eventTime);
+                
+                if (isNaN(time.getTime())) {
+                    element.textContent = "--:--:--";
+                    return;
+                }
+                
+                const diff = time - now;
+                
+                // Удаляем все классы цвета
+                element.className = 'main-timer';
+                
+                if (diff <= 0) {
+                    // Событие прошло
+                    element.textContent = `+${formatTime(-diff)}`;
+                    element.classList.add('main-past');
+                    return true;
+                }
+                
+                element.textContent = formatTime(diff);
+                
+                // Изменение цвета в зависимости от времени до события
+                const minsLeft = diff / (1000 * 60);
+                
+                if (minsLeft <= 15) {
+                    element.classList.add('main-15min');
+                } else if (minsLeft <= 30) {
+                    element.classList.add('main-30min');
+                } else if (minsLeft <= 60) {
+                    element.classList.add('main-1hour');
+                } else {
+                    element.classList.add('main-normal');
+                }
+                
+                return true;
+            } catch (e) {
+                console.error("Ошибка в updateMainTimer:", e);
+                element.textContent = "--:--:--";
+                return false;
+            }
+        }
+
+        function updateSecondaryTimer(eventTime, element) {
+            try {
+                const now = new Date();
+                const time = new Date(eventTime);
+                
+                if (isNaN(time.getTime())) {
+                    element.textContent = "--:--:--";
+                    return false;
+                }
+                
+                const diff = time - now;
+                
+                if (diff <= 0) {
+                    return false; // Удаляем прошедшие события
+                }
+                
+                // Удаляем все классы цвета
+                element.className = 'event-timer';
+                
+                element.textContent = formatTime(diff);
+                
+                // Изменение цвета в зависимости от времени до события
+                const minsLeft = diff / (1000 * 60);
+                
+                if (minsLeft <= 15) {
+                    element.classList.add('secondary-15min');
+                } else if (minsLeft <= 60) {
+                    element.classList.add('secondary-1hour');
+                } else {
+                    element.classList.add('secondary-normal');
+                }
+                
+                return true;
+            } catch (e) {
+                console.error("Ошибка в updateSecondaryTimer:", e);
+                element.textContent = "--:--:--";
+                return false;
+            }
+        }
+
+        function processEvents(data) {
+            // Обновляем основное событие
+            const mainEventElement = document.getElementById('mainEvent');
+            const mainTimerElement = document.getElementById('mainTimer');
+            
+            mainEventElement.textContent = data.mainEvent.name;
+            mainTimerElement.dataset.time = data.mainEvent.time;
+            updateMainTimer(data.mainEvent.time, mainTimerElement);
+            
+            // Обрабатываем второстепенные события
+            const secondaryContainer = document.getElementById('secondaryEvents');
+            let activeEvents = [];
+            
+            data.secondaryEvents.forEach(event => {
+                const eventElement = document.createElement('div');
+                eventElement.className = 'event-item';
+                eventElement.innerHTML = `
+                    <div class="event-name">${event.name}</div>
+                    <div class="event-timer" data-time="${event.time}">00:00:00</div>
+                `;
+                
+                const timerElement = eventElement.querySelector('.event-timer');
+                const isActive = updateSecondaryTimer(event.time, timerElement);
+                
+                if (isActive) {
+                    activeEvents.push({
+                        element: eventElement,
+                        timer: timerElement,
+                        time: event.time
+                    });
+                }
+            });
+            
+            // Очищаем и добавляем только активные события
+            secondaryContainer.innerHTML = '';
+            activeEvents.forEach(item => {
+                secondaryContainer.appendChild(item.element);
+                setInterval(() => {
+                    const isActive = updateSecondaryTimer(item.time, item.timer);
+                    if (!isActive) {
+                        item.element.remove();
+                    }
+                }, 1000);
+            });
+        }
+
+        function handleError(e) {
+            console.error("Ошибка загрузки событий:", e);
+            document.getElementById('mainEvent').textContent = "ОШИБКА ЗАГРУЗКИ";
+        }
+
+        function loadEvents() {
+            fetch('/api/events')
+                .then(r => r.json())
+                .then(data => processEvents(data))
+                .catch(e => handleError(e));
+        }
+        
+        // Инициализация
+        loadEvents();
+        setInterval(loadEvents, 60000);
+        
+        // Обновление основного таймера каждую секунду
+        setInterval(() => {
+            const mainTimer = document.getElementById('mainTimer');
+            const time = mainTimer.dataset.time;
+            if (time) updateMainTimer(time, mainTimer);
+        }, 1000);
+    </script>
+</body>
+</html>
